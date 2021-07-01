@@ -13,7 +13,7 @@ namespace EEGDataPreprocessor
         private const string INPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run";
         private const string OUTPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run\\out";
         private const int START_OUTPUT_INDEX = 0;
-        private const float EMOTION_SCALE_PER_TIME = 0.99f;
+        private const float EMOTION_SCALE_PER_TIME = 0.996f;
 
         private static readonly List<string> emotions = new List<string>
         {
@@ -118,7 +118,6 @@ namespace EEGDataPreprocessor
                         if (findedEnter && annosList[i].name.Equals("exit"))
                         {
                             findedEnter = false;
-                            pressInDataIndexes.Clear();
                             Console.WriteLine("");
                             Console.WriteLine("Found serial with index " + outPutIndex);
                             
@@ -146,6 +145,7 @@ namespace EEGDataPreprocessor
                             File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, Encoding.UTF8);
                             File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, Encoding.UTF8);
                             outPutIndex++;
+                            pressInDataIndexes.Clear();
                             Console.WriteLine("Serial writed in " + OUTPUT_FOLDER_PATH + "\\" + outPutIndex);
                         }
                     }
