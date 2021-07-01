@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,6 +13,7 @@ namespace EEGDataPreprocessor
         private const string INPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run";
         private const string OUTPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run\\out";
         private const int START_OUTPUT_INDEX = 0;
+        private const float EMOTION_SCALE_PER_TIME = 0.99f;
 
         private static readonly List<string> emotions = new List<string>
         {
@@ -92,9 +94,10 @@ namespace EEGDataPreprocessor
 
                     bool findedEnter = false;
                     int enterInDataIndex = -1;
-                    string emotionInSeries;
+                    string emotionInSeries = null;
                     List<int> pressInDataIndexes = new List<int>();
                     int lastInFileIndex = 0;
+                    float emotionValue = 0;
 
                     for (int i = 0; i < annosList.Count; i++)
                     {
@@ -103,6 +106,7 @@ namespace EEGDataPreprocessor
                             findedEnter = true;
                             enterInDataIndex = annosList[i].inDataIndex;
                             emotionInSeries = annosList[i + 1].name;
+                            emotionValue = 0f;
                         }
 
                         if (findedEnter && (annosList[i].name.Equals("press") || annosList[i].name.Equals("press1")))
@@ -118,24 +122,43 @@ namespace EEGDataPreprocessor
                             List<string> seriesData = sr.ReadNextLines(annosList[i].inDataIndex - enterInDataIndex + 1);
                             lastInFileIndex = annosList[i].inDataIndex + 1;
                             
-                            // form one serial file
+                            // form one serial and label file
                             List<string> finallySeriesData = new List<string>();
+                            List<string> labels = new List<string>();
                             for (int j = 0; j < seriesData.Count; j++)
                             {
                                 string cutted = seriesData[j].Substring(seriesData[j].IndexOf(',') + 1);
                                 finallySeriesData.Add(cutted.Substring(cutted.IndexOf(',') + 1));
+
+                                if (pressInDataIndexes.Contains(j + enterInDataIndex))
+                                    emotionValue = 1f;
+
+                                labels.Add(GetLabelLine(emotionInSeries, emotionValue));
+                                emotionValue *= EMOTION_SCALE_PER_TIME;
                             }
 
                             File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, Encoding.UTF8);
-                            
-                            // form labels file
-                            // TODO
-
+                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, Encoding.UTF8);
                             outPutIndex++;
                         }
                     }
                 }
             }
+        }
+        
+        private static string GetLabelLine(string emotion, float value)
+        {
+            StringBuilder result = new StringBuilder("");
+
+            for (int i = 0; i < emotions.Count; i++)
+            {
+                result.Append(emotion.Equals(emotions[i]) ? value.ToString(CultureInfo.InvariantCulture) : "0");
+                
+                if (i != emotions.Count - 1)
+                    result.Append(",");
+            }
+
+            return result.ToString();
         }
         
         private static int BinaryNearestIndex(List<long> list, long value)
