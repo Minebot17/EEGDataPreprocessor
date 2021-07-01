@@ -53,6 +53,7 @@ namespace EEGDataPreprocessor
                 if (!annoFile.Name.EndsWith("_anno.csv"))
                     continue;
 
+                Console.WriteLine("Start processing " + annoFile.Name);
                 FileInfo dataFile = new FileInfo(filePath.Substring(0, filePath.Length - 9) + ".csv");
                 List<(int inDataIndex, string name)> annosList = new List<(int inDataIndex, string name)>();
                 List<long> milliseconds = new List<long>();
@@ -66,6 +67,7 @@ namespace EEGDataPreprocessor
                         milliseconds.Add(long.Parse(line.Split(',')[1]));
                 }
                 
+                Console.WriteLine("Data file processed");
                 using (StreamReader sr = new StreamReader(annoFile.FullName, Encoding.UTF8))
                 {
                     sr.ReadLine();
@@ -88,6 +90,7 @@ namespace EEGDataPreprocessor
                     }
                 }
 
+                Console.WriteLine("Anno file processed and connected");
                 using (StreamReader sr = new StreamReader(dataFile.FullName, Encoding.UTF8))
                 {
                     sr.ReadLine();
@@ -116,11 +119,14 @@ namespace EEGDataPreprocessor
                         {
                             findedEnter = false;
                             pressInDataIndexes.Clear();
+                            Console.WriteLine("");
+                            Console.WriteLine("Found serial with index " + outPutIndex);
                             
                             // read one serial data
                             sr.SkipNexLines(enterInDataIndex - lastInFileIndex);
                             List<string> seriesData = sr.ReadNextLines(annosList[i].inDataIndex - enterInDataIndex + 1);
                             lastInFileIndex = annosList[i].inDataIndex + 1;
+                            Console.WriteLine("Serial readed");
                             
                             // form one serial and label file
                             List<string> finallySeriesData = new List<string>();
@@ -140,6 +146,7 @@ namespace EEGDataPreprocessor
                             File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, Encoding.UTF8);
                             File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, Encoding.UTF8);
                             outPutIndex++;
+                            Console.WriteLine("Serial writed in " + OUTPUT_FOLDER_PATH + "\\" + outPutIndex);
                         }
                     }
                 }
