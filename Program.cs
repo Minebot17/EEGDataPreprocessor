@@ -13,7 +13,7 @@ namespace EEGDataPreprocessor
         private const string INPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run";
         private const string OUTPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run\\out";
         private const int START_OUTPUT_INDEX = 0;
-        private const float EMOTION_SCALE_PER_TIME = 0.996f;
+        private const float EMOTION_SCALE_PER_TIME = 0.99f;
 
         private static readonly List<string> emotions = new List<string>
         {
@@ -132,18 +132,21 @@ namespace EEGDataPreprocessor
                             List<string> labels = new List<string>();
                             for (int j = 0; j < seriesData.Count; j++)
                             {
-                                string cutted = seriesData[j].Substring(seriesData[j].IndexOf(',') + 1);
-                                finallySeriesData.Add(cutted.Substring(cutted.IndexOf(',') + 1));
-
                                 if (pressInDataIndexes.Contains(j + enterInDataIndex))
                                     emotionValue = 1f;
+                                
+                                if (j % 5 != 0)
+                                    continue;
+                                
+                                string cutted = seriesData[j].Substring(seriesData[j].IndexOf(',') + 1);
+                                finallySeriesData.Add(cutted.Substring(cutted.IndexOf(',') + 1));
 
                                 labels.Add(GetLabelLine(emotionInSeries, emotionValue));
                                 emotionValue *= EMOTION_SCALE_PER_TIME;
                             }
 
-                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, Encoding.UTF8);
-                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, Encoding.UTF8);
+                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, new UTF8Encoding(false));
+                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, new UTF8Encoding(false));
                             outPutIndex++;
                             pressInDataIndexes.Clear();
                             Console.WriteLine("Serial writed in " + OUTPUT_FOLDER_PATH + "\\" + outPutIndex);
@@ -155,17 +158,7 @@ namespace EEGDataPreprocessor
         
         private static string GetLabelLine(string emotion, float value)
         {
-            StringBuilder result = new StringBuilder("");
-
-            for (int i = 0; i < emotions.Count; i++)
-            {
-                result.Append(emotion.Equals(emotions[i]) ? value.ToString(CultureInfo.InvariantCulture) : "0");
-                
-                if (i != emotions.Count - 1)
-                    result.Append(",");
-            }
-
-            return result.ToString();
+            return value > 0.1f ? emotions.IndexOf(emotion) + 1 + "" : "0";
         }
         
         private static int BinaryNearestIndex(List<long> list, long value)
