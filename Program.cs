@@ -12,8 +12,8 @@ namespace EEGDataPreprocessor
     {
         private const string INPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run";
         private const string OUTPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run\\out";
-        private const int START_OUTPUT_INDEX = 55;
-        private const float EMOTION_SCALE_PER_TIME = 0.99f;
+        private const int START_OUTPUT_INDEX = 0;
+        private const float EMOTION_SCALE_PER_TIME = 0.95f;
 
         private static readonly List<string> emotions = new List<string>
         {
@@ -64,7 +64,9 @@ namespace EEGDataPreprocessor
         
         public static void Main(string[] args)
         {
-            int outPutIndex = START_OUTPUT_INDEX;
+            
+            int outPutIndex = 0;
+            int subOutPutIndex = START_OUTPUT_INDEX;
             string[] files = Directory.GetFiles(INPUT_FOLDER_PATH, "*.csv");
 
             foreach (string filePath in files)
@@ -121,6 +123,7 @@ namespace EEGDataPreprocessor
                     List<int> pressInDataIndexes = new List<int>();
                     int lastInFileIndex = 0;
                     float emotionValue = 0;
+                    bool isFillEmotion = false;
 
                     for (int i = 0; i < annosList.Count; i++)
                     {
@@ -153,26 +156,56 @@ namespace EEGDataPreprocessor
                             for (int j = 0; j < seriesData.Count; j++)
                             {
                                 if (pressInDataIndexes.Contains(j + enterInDataIndex))
+                                {
                                     emotionValue = 1f;
-                                
-                                if (j % 5 != 0)
+                                    isFillEmotion = true;
+                                }
+
+                                if (j % 25 != 0)
                                     continue;
                                 
-                                finallySeriesData.Add(GetDataLine(header, seriesData[j].Split(',')));
+                                if (isFillEmotion)
+                                    finallySeriesData.Add(GetDataLine(header, seriesData[j].Split(',')));
 
-                                labels.Add(GetLabelLine(emotionInSeries, emotionValue));
+                                if (isFillEmotion)
+                                    labels.Add(GetLabelLine(emotionInSeries, emotionValue));
+                                
                                 emotionValue *= EMOTION_SCALE_PER_TIME;
-                            }
 
-                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_input.csv", finallySeriesData, new UTF8Encoding(false));
-                            File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + outPutIndex + "_labels.csv", labels, new UTF8Encoding(false));
+                                if (emotionValue < 0.1f && isFillEmotion)
+                                {
+                                    File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_input.csv", finallySeriesData, new UTF8Encoding(false));
+                                    File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_labels.csv", labels, new UTF8Encoding(false));
+                                    subOutPutIndex++;
+                                    isFillEmotion = false;
+                                }
+                            }
+                            
                             outPutIndex++;
                             pressInDataIndexes.Clear();
-                            Console.WriteLine("Serial writed in " + OUTPUT_FOLDER_PATH + "\\" + outPutIndex);
                         }
                     }
                 }
             }
+
+            Console.WriteLine("Start rename");
+            Random rnd = new Random();
+            for (int i = 0; i < 10000; i++)
+            {
+                int i1 = rnd.Next(subOutPutIndex - 1);
+                int i2 = rnd.Next(subOutPutIndex - 1);
+                
+                if (i1 == i2)
+                    continue;
+                
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "_input.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "[_input.csv");
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "[_labels.csv");
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i2 + "_input.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "_input.csv");
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i2 + "_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "_labels.csv");
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "[_input.csv", OUTPUT_FOLDER_PATH + "\\" + i2 + "_input.csv");
+                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "[_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i2 + "_labels.csv");
+            }
+            Console.WriteLine("Rename complete");
         }
         
         private static string GetDataLine(string[] header, string[] rawData)
