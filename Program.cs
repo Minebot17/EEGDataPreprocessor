@@ -13,24 +13,13 @@ namespace EEGDataPreprocessor
         private const string INPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run";
         private const string OUTPUT_FOLDER_PATH = "C:\\Users\\serpi\\Desktop\\repos\\EEGSetParser\\run\\out";
         private const int START_OUTPUT_INDEX = 0;
-        private const float EMOTION_SCALE_PER_TIME = 0.95f;
+        private const float EMOTION_SCALE_PER_TIME = 0.97f;
 
         private static readonly List<string> emotions = new List<string>
         {
-            "relax",
-            "awe",
-            "frustration",
-            "joy",
-            "anger",
             "happy",
-            "sad",
-            "love",
-            "grief",
-            "fear",
-            "jealousy",
-            "relief",
-            "disgust",
             "excite",
+            "disgust",
             "compassion"
         };
 
@@ -64,7 +53,7 @@ namespace EEGDataPreprocessor
         
         public static void Main(string[] args)
         {
-            
+            int[] emotionCountActual = new int[emotions.Count];
             int outPutIndex = 0;
             int subOutPutIndex = START_OUTPUT_INDEX;
             string[] files = Directory.GetFiles(INPUT_FOLDER_PATH, "*.csv");
@@ -124,6 +113,8 @@ namespace EEGDataPreprocessor
                     int lastInFileIndex = 0;
                     float emotionValue = 0;
                     bool isFillEmotion = false;
+                    int m = -1;
+                    int thisIndex = -1;
 
                     for (int i = 0; i < annosList.Count; i++)
                     {
@@ -155,10 +146,25 @@ namespace EEGDataPreprocessor
                             List<string> labels = new List<string>();
                             for (int j = 0; j < seriesData.Count; j++)
                             {
-                                if (pressInDataIndexes.Contains(j + enterInDataIndex))
+                                if (pressInDataIndexes.Contains(j + enterInDataIndex) && thisIndex == -1)
                                 {
-                                    emotionValue = 1f;
-                                    isFillEmotion = true;
+                                    if (!isFillEmotion)
+                                    {
+                                        emotionValue = 1f;
+                                        isFillEmotion = true;
+
+                                        if (j > 250)
+                                        {
+                                            thisIndex = j;
+                                            j -= 250;
+                                        }
+                                    }
+                                    else if (m == -1)
+                                        m = j;
+                                }
+                                else if (thisIndex != -1 && thisIndex < j)
+                                {
+                                    thisIndex = -1;
                                 }
 
                                 if (j % 25 != 0)
@@ -168,16 +174,29 @@ namespace EEGDataPreprocessor
                                     finallySeriesData.Add(GetDataLine(header, seriesData[j].Split(',')));
 
                                 if (isFillEmotion)
-                                    labels.Add(GetLabelLine(emotionInSeries, emotionValue));
+                                    labels.Add(GetLabelLine(emotionInSeries));
                                 
                                 emotionValue *= EMOTION_SCALE_PER_TIME;
 
                                 if (emotionValue < 0.1f && isFillEmotion)
                                 {
-                                    File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_input.csv", finallySeriesData, new UTF8Encoding(false));
-                                    File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_labels.csv", labels, new UTF8Encoding(false));
-                                    subOutPutIndex++;
+                                    if (emotionCountActual[emotions.IndexOf(emotionInSeries)] < 69)
+                                    {
+                                        File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_input.csv", finallySeriesData, new UTF8Encoding(false));
+                                        File.WriteAllLines(OUTPUT_FOLDER_PATH + "\\" + subOutPutIndex + "_labels.csv", labels, new UTF8Encoding(false));
+                                        subOutPutIndex++;
+                                        emotionCountActual[emotions.IndexOf(emotionInSeries)]++;
+                                    }
+                                    
                                     isFillEmotion = false;
+                                    finallySeriesData.Clear();
+                                    labels.Clear();
+
+                                    if (m != -1)
+                                    {
+                                        j = m;
+                                        m = -1;
+                                    }
                                 }
                             }
                             
@@ -188,24 +207,16 @@ namespace EEGDataPreprocessor
                 }
             }
 
-            Console.WriteLine("Start rename");
-            Random rnd = new Random();
-            for (int i = 0; i < 10000; i++)
+
+
+            int[] emotionCount = new int[emotions.Count];
+            for (int i = 0; i < outPutIndex; i++)
             {
-                int i1 = rnd.Next(subOutPutIndex - 1);
-                int i2 = rnd.Next(subOutPutIndex - 1);
-                
-                if (i1 == i2)
-                    continue;
-                
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "_input.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "[_input.csv");
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "[_labels.csv");
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i2 + "_input.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "_input.csv");
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i2 + "_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i1 + "_labels.csv");
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "[_input.csv", OUTPUT_FOLDER_PATH + "\\" + i2 + "_input.csv");
-                File.Move(OUTPUT_FOLDER_PATH + "\\" + i1 + "[_labels.csv", OUTPUT_FOLDER_PATH + "\\" + i2 + "_labels.csv");
+                string fileName = OUTPUT_FOLDER_PATH + "\\" + i + "_labels.csv";
+                int emotion = int.Parse(File.ReadLines(fileName, Encoding.UTF8).ToList()[0]);
+                emotionCount[emotion]++;
             }
-            Console.WriteLine("Rename complete");
+            Console.WriteLine(string.Join(",", emotionCount));
         }
         
         private static string GetDataLine(string[] header, string[] rawData)
@@ -215,7 +226,7 @@ namespace EEGDataPreprocessor
             for (int i = 0; i < channelsList.Count; i++)
             {
                 int channelIndex = Array.IndexOf(header, channelsList[i]);
-                builder.Append(channelIndex == -1 ? "0" : rawData[channelIndex]);
+                builder.Append(channelIndex == -1 ? "0" : (((float) double.Parse(rawData[channelIndex].Replace('.',',')) / 100f)+"").Replace(',','.'));
                 
                 if (i < channelsList.Count - 1)
                     builder.Append(",");
@@ -224,9 +235,9 @@ namespace EEGDataPreprocessor
             return builder.ToString();
         }
         
-        private static string GetLabelLine(string emotion, float value)
+        private static string GetLabelLine(string emotion)
         {
-            return value > 0.1f ? emotions.IndexOf(emotion) + 1 + "" : "0";
+            return emotions.IndexOf(emotion) + "";
         }
         
         private static int BinaryNearestIndex(List<long> list, long value)
